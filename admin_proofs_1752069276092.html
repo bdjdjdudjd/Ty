@@ -1,0 +1,341 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Gestion des Preuves de Paiement</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Preuves en Attente</h3>
+                <div class="card-tools">
+                    <span class="badge badge-warning">{{ proofs|length }} en attente</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if proofs %}
+                <div class="row">
+                    {% for proof in proofs %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-user"></i> {{ proof[3] or 'Utilisateur' }}
+                                    <span class="badge badge-info">ID: {{ proof[0] }}</span>
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Service:</strong> {{ proof[4] }}</p>
+                                <p><strong>Montant:</strong> {{ "%.2f"|format(proof[5]) }} DZD</p>
+                                <p><strong>Méthode:</strong> {{ proof[6] }}</p>
+                                <p><strong>Date:</strong> {{ proof[7] }}</p>
+                                
+                                {% if proof[8] %}
+                                <div class="text-center mb-3">
+                                    <img src="https://api.telegram.org/file/bot7965004321:AAEjt1sIQc8XbqK1HoDNIbo7hvn2qxj6ljI/{{ proof[8] }}" 
+                                         class="img-fluid" style="max-height: 200px;" alt="Preuve de paiement">
+                                </div>
+                                {% endif %}
+                                
+                                <div class="btn-group w-100">
+                                    <button class="btn btn-success" onclick="approveProof({{ proof[0] }})">
+                                        <i class="fas fa-check"></i> Approuver
+                                    </button>
+                                    <button class="btn btn-danger" onclick="rejectProof({{ proof[0] }})">
+                                        <i class="fas fa-times"></i> Rejeter
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h4>Aucune preuve en attente</h4>
+                    <p class="text-muted">Toutes les preuves ont été traitées.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Modal de rejet -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rejeter la Preuve</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Raison du rejet :</label>
+                    <textarea class="form-control" id="rejectReason" rows="3" placeholder="Expliquez pourquoi cette preuve est rejetée..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" onclick="confirmReject()">Confirmer le Rejet</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentProofId = null;
+
+function approveProof(proofId) {
+    if (confirm('Êtes-vous sûr de vouloir approuver cette preuve ?')) {
+        $.post(`/api/admin/approve_proof/${proofId}`, function(data) {
+            if (data.status === 'success') {
+                alert('Preuve approuvée avec succès !');
+                location.reload();
+            } else {
+                alert('Erreur : ' + data.message);
+            }
+        });
+    }
+}
+
+function rejectProof(proofId) {
+    currentProofId = proofId;
+    $('#rejectModal').modal('show');
+}
+
+function confirmReject() {
+    const reason = $('#rejectReason').val();
+    if (!reason) {
+        alert('Veuillez entrer une raison pour le rejet.');
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/admin/reject_proof/${currentProofId}`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({reason: reason}),
+        success: function(data) {
+            if (data.status === 'success') {
+                alert('Preuve rejetée avec succès !');
+                location.reload();
+            } else {
+                alert('Erreur : ' + data.message);
+            }
+        }
+    });
+}
+
+// Auto-refresh toutes les 30 secondes
+setInterval(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Preuves - CryptoDZ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .proof-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+        }
+        .proof-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .proof-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .actions {
+            text-align: center;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-approve {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-reject {
+            background: #f44336;
+            color: white;
+        }
+        .btn-back {
+            background: #2196F3;
+            color: white;
+        }
+        .no-proofs {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Gestion des Preuves de Paiement</h1>
+            <p>Vérification et validation des paiements</p>
+        </div>
+
+        {% if proofs %}
+            {% for proof in proofs %}
+            <div class="proof-card">
+                <div class="proof-header">
+                    <h3>Preuve #{{ proof[0] }}</h3>
+                    <span class="status">⏳ En attente</span>
+                </div>
+                
+                <div class="proof-info">
+                    <div class="info-item">
+                        <strong>👤 Utilisateur:</strong><br>
+                        {{ proof[3] }} (@{{ proof[2] }})
+                    </div>
+                    <div class="info-item">
+                        <strong>🔄 Service:</strong><br>
+                        {{ proof[4] }}
+                    </div>
+                    <div class="info-item">
+                        <strong>💰 Montant:</strong><br>
+                        {{ proof[5] }} DZD
+                    </div>
+                    <div class="info-item">
+                        <strong>💳 Méthode:</strong><br>
+                        {{ proof[6] }}
+                    </div>
+                    <div class="info-item">
+                        <strong>📅 Date:</strong><br>
+                        {{ proof[7] }}
+                    </div>
+                    <div class="info-item">
+                        <strong>📋 ID Telegram:</strong><br>
+                        {{ proof[1] }}
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-approve" onclick="approveProof({{ proof[0] }})">
+                        ✅ Approuver
+                    </button>
+                    <button class="btn btn-reject" onclick="rejectProof({{ proof[0] }})">
+                        ❌ Rejeter
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-proofs">
+                <h3>✅ Aucune preuve en attente</h3>
+                <p>Toutes les preuves ont été traitées !</p>
+            </div>
+        {% endif %}
+
+        <div class="actions">
+            <a href="/" class="btn btn-back">🏠 Retour Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        function approveProof(proofId) {
+            if (confirm('Approuver cette preuve de paiement ?')) {
+                fetch('/api/approve-proof', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({proof_id: proofId})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ Preuve approuvée avec succès !');
+                        location.reload();
+                    } else {
+                        alert('❌ Erreur lors de l\'approbation');
+                    }
+                });
+            }
+        }
+
+        function rejectProof(proofId) {
+            const reason = prompt('Raison du rejet:');
+            if (reason) {
+                fetch('/api/reject-proof', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({proof_id: proofId, reason: reason})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('❌ Preuve rejetée !');
+                        location.reload();
+                    } else {
+                        alert('❌ Erreur lors du rejet');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

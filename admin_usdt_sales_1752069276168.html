@@ -1,0 +1,215 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Gestion des Ventes USDT</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Ventes USDT en Attente</h3>
+                <div class="card-tools">
+                    <span class="badge badge-warning">{{ sales|length }} en attente</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if sales %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Utilisateur</th>
+                                <th>Montant USDT</th>
+                                <th>Taux DZD</th>
+                                <th>Total DZD</th>
+                                <th>Hash Transaction</th>
+                                <th>Coordonnées</th>
+                                <th>Statut</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in sales %}
+                            <tr>
+                                <td><span class="badge badge-primary">{{ sale.id }}</span></td>
+                                <td>
+                                    <strong>{{ sale.username or sale.first_name or 'N/A' }}</strong><br>
+                                    <small class="text-muted">ID: {{ sale.telegram_id }}</small>
+                                </td>
+                                <td>{{ "%.4f"|format(sale.amount_usdt) }} USDT</td>
+                                <td>{{ "%.2f"|format(sale.rate_dzd) }} DZD</td>
+                                <td><strong>{{ "%.2f"|format(sale.total_dzd) }} DZD</strong></td>
+                                <td>
+                                    {% if sale.transaction_hash %}
+                                        <code class="text-truncate d-block" style="max-width: 150px;">{{ sale.transaction_hash }}</code>
+                                        <a href="https://tronscan.org/#/transaction/{{ sale.transaction_hash }}" target="_blank" class="btn btn-sm btn-info">
+                                            <i class="fas fa-external-link-alt"></i> Blockchain
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">En attente</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sale.payout_info %}
+                                        <button class="btn btn-sm btn-outline-info" onclick="showPayoutInfo('{{ sale.payout_info|e }}')">
+                                            <i class="fas fa-info-circle"></i> Voir
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted">Non fourni</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sale.status == 'waiting_send' %}
+                                        <span class="badge badge-warning">En attente d'envoi</span>
+                                    {% elif sale.status == 'hash_provided' %}
+                                        <span class="badge badge-info">Hash fourni</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ sale.created_at }}</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-success btn-sm" onclick="approveUsdtSale({{ sale.id }})">
+                                            <i class="fas fa-check"></i> Valider
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="rejectUsdtSale({{ sale.id }})">
+                                            <i class="fas fa-times"></i> Rejeter
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center">
+                    <i class="fas fa-coins fa-3x text-success mb-3"></i>
+                    <h4>Aucune vente USDT en attente</h4>
+                    <p class="text-muted">Toutes les ventes ont été traitées.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Modal coordonnées de paiement -->
+<div class="modal fade" id="payoutInfoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Coordonnées de Paiement</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Informations fournies par l'utilisateur :</strong>
+                </div>
+                <pre id="payoutInfoContent" class="bg-light p-3" style="white-space: pre-wrap;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de rejet USDT -->
+<div class="modal fade" id="rejectUsdtModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rejeter la Vente USDT</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Raison du rejet :</label>
+                    <textarea class="form-control" id="rejectUsdtReason" rows="3" placeholder="Expliquez pourquoi cette vente est rejetée..."></textarea>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attention :</strong> L'utilisateur sera notifié du rejet avec cette raison.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" onclick="confirmUsdtReject()">Confirmer le Rejet</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentUsdtSaleId = null;
+
+function showPayoutInfo(payoutInfo) {
+    $('#payoutInfoContent').text(payoutInfo);
+    $('#payoutInfoModal').modal('show');
+}
+
+function approveUsdtSale(saleId) {
+    if (confirm('⚠️ IMPORTANT: Avez-vous vérifié ?\n\n✅ Hash de transaction sur blockchain\n✅ Montant USDT reçu\n✅ Coordonnées de paiement utilisateur\n\nApprouver cette vente USDT ?')) {
+        $.post(`/api/admin/approve_usdt_sale/${saleId}`, function(data) {
+            if (data.status === 'success') {
+                alert('✅ Vente USDT approuvée ! L\'utilisateur a été notifié et le paiement peut être effectué.');
+                location.reload();
+            } else {
+                alert('❌ Erreur : ' + data.message);
+            }
+        });
+    }
+}
+
+function rejectUsdtSale(saleId) {
+    currentUsdtSaleId = saleId;
+    $('#rejectUsdtModal').modal('show');
+}
+
+function confirmUsdtReject() {
+    const reason = $('#rejectUsdtReason').val();
+    if (!reason) {
+        alert('Veuillez entrer une raison pour le rejet.');
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/admin/reject_usdt_sale/${currentUsdtSaleId}`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({reason: reason}),
+        success: function(data) {
+            if (data.status === 'success') {
+                alert('Vente USDT rejetée avec succès !');
+                location.reload();
+            } else {
+                alert('Erreur : ' + data.message);
+            }
+        }
+    });
+}
+
+// Auto-refresh toutes les 30 secondes
+setInterval(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

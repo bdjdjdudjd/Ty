@@ -1,0 +1,166 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Paramètres du Système</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Taux USDT</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="usdtRatesForm">
+                            <div class="form-group">
+                                <label>Taux d'achat USDT (DZD)</label>
+                                <input type="number" class="form-control" id="usdt_buy_rate" 
+                                       value="{{ settings.usdt_buy_rate }}" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Taux de vente USDT (DZD)</label>
+                                <input type="number" class="form-control" id="usdt_sell_rate" 
+                                       value="{{ settings.usdt_sell_rate }}" step="0.01">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Sauvegarder
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Configuration USDT</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="usdtConfigForm">
+                            <div class="form-group">
+                                <label>Adresse de réception USDT</label>
+                                <input type="text" class="form-control" id="usdt_address" 
+                                       value="{{ settings.usdt_address }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Timeout des transactions (secondes)</label>
+                                <input type="number" class="form-control" id="transaction_timeout" 
+                                       value="{{ settings.transaction_timeout }}">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Sauvegarder
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Notifications Push</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Test de notification</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="test_telegram_id" 
+                                               placeholder="ID Telegram">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-info" onclick="testNotification()">
+                                                <i class="fas fa-paper-plane"></i> Tester
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label>Message de test</label>
+                                    <input type="text" class="form-control" id="test_message" 
+                                           value="Test de notification depuis l'admin">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$('#usdtRatesForm').submit(function(e) {
+    e.preventDefault();
+    
+    const buyRate = $('#usdt_buy_rate').val();
+    const sellRate = $('#usdt_sell_rate').val();
+    
+    updateSetting('usdt_buy_rate', buyRate);
+    updateSetting('usdt_sell_rate', sellRate);
+});
+
+$('#usdtConfigForm').submit(function(e) {
+    e.preventDefault();
+    
+    const address = $('#usdt_address').val();
+    const timeout = $('#transaction_timeout').val();
+    
+    updateSetting('usdt_address', address);
+    updateSetting('transaction_timeout', timeout);
+});
+
+function updateSetting(name, value) {
+    $.ajax({
+        url: '/api/admin/update_setting',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            setting_name: name,
+            setting_value: value
+        }),
+        success: function(data) {
+            if (data.status === 'success') {
+                alert('Paramètre mis à jour avec succès !');
+            } else {
+                alert('Erreur : ' + data.message);
+            }
+        }
+    });
+}
+
+function testNotification() {
+    const telegramId = $('#test_telegram_id').val();
+    const message = $('#test_message').val();
+    
+    if (!telegramId) {
+        alert('Veuillez entrer un ID Telegram');
+        return;
+    }
+    
+    $.get(`/api/admin/test_notification/${telegramId}`, function(data) {
+        if (data.status === 'success') {
+            alert('Notification envoyée avec succès !');
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

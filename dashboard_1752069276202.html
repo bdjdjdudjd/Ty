@@ -1,0 +1,297 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Dashboard</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <!-- Stats Cards -->
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box stats-card text-white">
+                    <div class="inner">
+                        <h3>{{ stats.total_users }}</h3>
+                        <p>Utilisateurs Total</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+                <div class="small-box stats-card-success text-white">
+                    <div class="inner">
+                        <h3>{{ stats.completed_transactions }}</h3>
+                        <p>Transactions Complétées</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+                <div class="small-box stats-card-warning text-white">
+                    <div class="inner">
+                        <h3>{{ stats.vip_users }}</h3>
+                        <p>Utilisateurs VIP</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+                <div class="small-box stats-card-info text-white">
+                    <div class="inner">
+                        <h3>{{ "%.0f"|format(stats.total_revenue) }} DZD</h3>
+                        <p>Revenue Total</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-money-bill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Transactions par Heure (Aujourd'hui)</h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="hourlyChart" height="80"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Répartition par Service</h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="serviceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Transactions Récentes</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover text-nowrap">
+                            <thead>
+                                <tr>
+                                    <th>ID Transaction</th>
+                                    <th>Utilisateur</th>
+                                    <th>Service</th>
+                                    <th>Montant</th>
+                                    <th>Statut</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tx in stats.recent_transactions %}
+                                <tr>
+                                    <td><span class="badge badge-primary">{{ tx[0] }}</span></td>
+                                    <td>{{ tx[1] or 'N/A' }}</td>
+                                    <td>{{ tx[2] }}</td>
+                                    <td>{{ "%.2f"|format(tx[3]) }} DZD</td>
+                                    <td>
+                                        {% if tx[4] == 'completed' %}
+                                            <span class="badge badge-success">Complété</span>
+                                        {% elif tx[4] == 'pending' %}
+                                            <span class="badge badge-warning">En attente</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">Rejeté</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ tx[5] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Graphique des transactions par heure
+$.get('/api/stats', function(data) {
+    // Hourly Chart
+    const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+    new Chart(hourlyCtx, {
+        type: 'line',
+        data: {
+            labels: data.hourly_stats.map(h => h[0] + 'h'),
+            datasets: [{
+                label: 'Transactions',
+                data: data.hourly_stats.map(h => h[1]),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    // Service Chart
+    const serviceCtx = document.getElementById('serviceChart').getContext('2d');
+    new Chart(serviceCtx, {
+        type: 'doughnut',
+        data: {
+            labels: data.service_stats.map(s => s[0]),
+            datasets: [{
+                data: data.service_stats.map(s => s[1]),
+                backgroundColor: [
+                    '#FF6384',
+                    '#36A2EB',
+                    '#FFCE56',
+                    '#4BC0C0',
+                    '#9966FF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+});
+</script>
+{% endblock %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoDZ Admin Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .navigation {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .nav-button {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .nav-button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🇩🇿 CryptoDZ Admin Dashboard</h1>
+            <p>Tableau de bord administrateur</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_users }}</div>
+                <div>👥 Utilisateurs Totaux</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.pending_transactions }}</div>
+                <div>⏳ Transactions En Attente</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.pending_proofs }}</div>
+                <div>📸 Preuves À Vérifier</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_volume }}</div>
+                <div>💰 Volume Total DZD</div>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="/admin/proofs" class="nav-button">
+                📸 Gérer les Preuves
+            </a>
+            <a href="/admin/usdt-sales" class="nav-button">
+                💰 Ventes USDT
+            </a>
+            <a href="/admin/settings" class="nav-button">
+                ⚙️ Paramètres
+            </a>
+            <a href="/" class="nav-button">
+                🔄 Actualiser
+            </a>
+        </div>
+    </div>
+</body>
+</html>

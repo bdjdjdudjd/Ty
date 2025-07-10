@@ -1,0 +1,87 @@
+
+{% extends "base.html" %}
+
+{% block title %}Gestion des Utilisateurs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2>👥 Gestion des Utilisateurs</h2>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Liste des Utilisateurs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nom d'utilisateur</th>
+                                    <th>Prénom</th>
+                                    <th>Statut</th>
+                                    <th>Cashback</th>
+                                    <th>Transactions</th>
+                                    <th>Inscription</th>
+                                    <th>Dernière activité</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user[0] }}</td>
+                                    <td>@{{ user[1] or 'N/A' }}</td>
+                                    <td>{{ user[2] or 'N/A' }}</td>
+                                    <td>
+                                        {% if user[3] %}
+                                            <span class="badge bg-warning">👑 VIP</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">🌟 Standard</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.2f"|format(user[4]) }} DZD</td>
+                                    <td>{{ user[5] }}</td>
+                                    <td>{{ user[6][:10] if user[6] else 'N/A' }}</td>
+                                    <td>{{ user[7][:10] if user[7] else 'N/A' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" onclick="upgradeToVip({{ user[0] }})">
+                                            Promouvoir VIP
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function upgradeToVip(userId) {
+    if (confirm('Promouvoir cet utilisateur au statut VIP ?')) {
+        fetch('/api/upgrade-vip', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({user_id: userId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Utilisateur promu VIP avec succès !');
+                location.reload();
+            } else {
+                alert('Erreur lors de la promotion VIP');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}
